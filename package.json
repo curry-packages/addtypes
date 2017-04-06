@@ -4,6 +4,7 @@
     "author": "Bernd Brassel <bbr@informatik.uni-kiel.de>",
     "maintainer": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "A tool to add missing type signatures in a Curry program",
+    "category": [ "Programming" ],
     "dependencies": {
     },
     "description":

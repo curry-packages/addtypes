@@ -85,8 +85,9 @@ addTypeSignatures progname = do
 
 --- retrieve the functions without type signature and their type
 
-getTypes :: CurryProg -> CurryProg -> [(String,CTypeExpr)]
-getTypes (CurryProg _ _ _ funcDecls1 _) (CurryProg _ _ _ funcDecls2 _) 
+getTypes :: CurryProg -> CurryProg -> [(String,CQualTypeExpr)]
+getTypes (CurryProg _ _ _ _ _ _ funcDecls1 _)
+         (CurryProg _ _ _ _ _ _ funcDecls2 _) 
          = getTypesFuncDecls funcDecls1 funcDecls2
   where
     getTypesFuncDecls [] [] = []
@@ -103,7 +104,7 @@ getTypes (CurryProg _ _ _ funcDecls1 _) (CurryProg _ _ _ funcDecls2 _)
 --- has to process "Code" tokens and can be sure that there will be no
 --- confusion with Comments, Strings or Chars within the program.
 
-addTypes :: Tokens -> [(String,CTypeExpr)] -> Tokens
+addTypes :: Tokens -> [(String,CQualTypeExpr)] -> Tokens
 addTypes [] _ = []
 addTypes (ModuleHead s:ts)   fts = ModuleHead s : (addTypes ts fts)
 addTypes (SmallComment s:ts) fts = SmallComment s : (addTypes ts fts)
@@ -114,13 +115,14 @@ addTypes (Code s:ts)         fts = Code newS : newTs
   where
     newS = addTypesCode s newFts fts
     newTs = if null newFts then ts else addTypes ts newFts
-    newFts = x where x free
+    newFts = unknown
 
 --- Within a given  code segment insert all annotations for the contained
 --- function and return the new code + the list of functions not yet 
 --- inserted (via the logical variable newFts).
 
-addTypesCode :: [Char] -> [([Char],CTypeExpr)] -> [([Char],CTypeExpr)] -> [Char]
+addTypesCode :: String -> [(String,CQualTypeExpr)] -> [(String,CQualTypeExpr)]
+             -> String
 addTypesCode code [] [] = code
 addTypesCode code newFts ((f,t):fts)
   | null code = (newFts=:=((f,t):fts)) &> []
@@ -140,8 +142,9 @@ addTypesCode code newFts ((f,t):fts)
     printf = if all (flip elem infixIDs) f then '(':f++")" else f
 
     ppSig texp = nest 2 $
-                sep [ text printf
-                    , align $ doubleColon <+> ppCTypeExpr defaultOptions texp]
+                   sep [ text printf
+                       , align $ doubleColon <+>
+                         ppCQualTypeExpr defaultOptions texp]
 
 
 --- name type variables with a,b,c ... z, t0, t1, ...
@@ -152,38 +155,53 @@ toTVar n | n<26      = CTVar (n,[chr (97+n)])
 
 --- test for functions not typed by the programmer
 
-isUntyped :: CTypeExpr -> Bool
+isUntyped :: CQualTypeExpr -> Bool
 isUntyped typeexpr
    = case typeexpr of
-       (CTCons (mod,name) []) -> name == "untyped" && mod == "Prelude"
-       _                      -> False
+       CQualType (CContext []) (CTCons (mod,name)) ->
+                                   name == "untyped" && mod == "Prelude"
+       _ -> False
 
---- normalizing is to rename Variables left-right beginning with 0
+--- normalizing is to rename variables left-right beginning with 0
 --- and replace singletons with an "_"
-normalize :: CTypeExpr -> CTypeExpr
-normalize t | varNames 0 (tvars t newT) = newT where newT free
+normalize :: CQualTypeExpr -> CQualTypeExpr
+normalize t | varNames 0 (tvarsInQualType t newT) = newT  where newT free
 
---- retrieve all vars contained in a ttype expression and simultaniously
+--- retrieve all vars contained in a qualified type expression and
+--- simultaneously build a new qualified type expression
+--- with logical variables for type vars
+
+tvarsInQualType :: CQualTypeExpr -> CQualTypeExpr -> [(Int,CTypeExpr)]
+tvarsInQualType (CQualType (CContext cons) t) (CQualType (CContext cons') t') =
+  tvarsInContext cons cons' ++ tvars t t'
+ where
+  tvarsInContext [] [] = []
+  tvarsInContext ((qf,te):ctxt) ((qf',te'):ctxt')
+    | qf=:=qf' = tvars te te' ++ tvarsInContext ctxt ctxt'
+
+--- retrieve all vars contained in a type expression and simultaneously
 --- build a new type expression with logical variables for type vars
 
 tvars :: CTypeExpr -> CTypeExpr -> [(Int,CTypeExpr)]
 tvars (CTVar (i,_)) m = [(i,m)]
-tvars (CTCons n args) (CTCons n' args') 
-  | n=:=n' = concat (dualMap tvars args args')
+tvars (CTCons n) (CTCons n') 
+  | n=:=n' = []
 tvars (CFuncType t1 t2) (CFuncType t1' t2')
+  = tvars t1 t1' ++ tvars t2 t2'
+tvars (CTApply t1 t2) (CTApply t1' t2')
   = tvars t1 t1' ++ tvars t2 t2'
 
 --- give a list of variables names depending on whether they are singletons
 --- or not
 
-varNames :: Int -> [(_,CTypeExpr)] -> Success
-varNames _ [] = success
+varNames :: Eq a => Int -> [(a,CTypeExpr)] -> Bool
+varNames _ [] = True
 varNames n ((i,v):ivs) 
-  | null is =   (v=:=(CTVar (0,"_"))) &> (varNames n others)
+  | null is =   (v =:= CTVar (0,"_")) &> (varNames n others)
   | otherwise = (giveName (toTVar n) (v:map snd is)) &> (varNames (n+1) others)
   where
     (is,others) = partition (\ (i',_) -> i==i') ivs
-    giveName _ [] = success
+    giveName _ [] = True
     giveName name (x:xs) = name=:=x & giveName name xs
 
 --- map on two lists simultaniously. Can't use zip, because the second
@@ -195,7 +213,7 @@ dualMap f (x:xs) (y:ys) = f x y:dualMap f xs ys
 
 --- a left hand side defines a function named f, if it starts leftmost,
 --- and contains f 
-defines :: [Char] -> [Char] -> Bool
+defines :: String -> String -> Bool
 defines f lhs 
   | null ts = False
   | head lhs == ' ' = False
@@ -213,7 +231,7 @@ infixIDs =  "~!@#$%^&*+-=<>?./|\\:"
 
 --- divide a left hand side to a list of symbols contained
 --- e.g. symbols "f x [y,z]" = ["f","x","y","z"]
-symbols :: [Char] -> [[Char]]
+symbols :: String -> [String]
 symbols lhs = syms [] lhs
   where
     maybeSym t = if null t then [] else [t]

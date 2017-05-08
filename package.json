@@ -1,6 +1,6 @@
 {
     "name": "addtypes",
-    "version": "0.0.1",
+    "version": "2.0.0",
     "author": "Bernd Brassel <bbr@informatik.uni-kiel.de>",
     "maintainer": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "A tool to add missing type signatures in a Curry program",
@@ -8,8 +8,8 @@
     "dependencies": {
     },
     "compilerCompatibility": {
-        "pakcs": ">= 1.12.0, < 2.0.0",
-        "kics2": ">= 0.5.0, < 2.0.0"
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
     },
     "description":
       "This package contains a tool which adds missing type signatures

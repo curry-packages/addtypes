@@ -7,6 +7,10 @@
     "category": [ "Programming" ],
     "dependencies": {
     },
+    "compilerCompatibility": {
+        "pakcs": ">= 1.12.0, < 2.0.0",
+        "kics2": ">= 0.5.0, < 2.0.0"
+    },
     "description":
       "This package contains a tool which adds missing type signatures
        to top-level operations in a Curry module.

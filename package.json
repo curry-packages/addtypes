@@ -6,6 +6,7 @@
     "synopsis": "A tool to add missing type signatures in a Curry program",
     "category": [ "Programming" ],
     "dependencies": {
+        "abstract-curry": ">= 2.0.0"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",

@@ -3,7 +3,7 @@
 -- write while developing the program. 
 --
 -- @author Bernd Brassel, with changes by Michael Hanus
--- @version November 2016
+-- @version November 2017
 -- 
 -- Possible extensions: Use type synonyms to reduce annotations
 ------------------------------------------------------------------
@@ -12,16 +12,17 @@
 
 module AddTypes(main,addTypeSignatures) where
 
-import AbstractCurry.Types
-import AbstractCurry.Files
-import AbstractCurry.Pretty
 import AllSolutions
 import CurryStringClassifier
 import Distribution (stripCurrySuffix)
 import FileGoodies
 import List
-import Pretty
 import System (exitWith, system, getArgs)
+
+import AbstractCurry.Types
+import AbstractCurry.Files
+import AbstractCurry.Pretty
+import Text.Pretty
 
 -- The tool is rather simple, it uses Curry's facilities for 
 -- meta-programming to read the program in the form defined 
@@ -132,7 +133,7 @@ addTypesCode code newFts ((f,t):fts)
           : addTypesCode (tail remainder) newFts ((f,t):fts)
       ' ':_ -> line ++ addTypesCode remainder newFts ((f,t):fts)
       _ -> if defines f lhs
-             then pretty 78 (ppSig $ normalize t) ++ "\n" ++
+             then showWidth 78 (ppSig $ normalize t) ++ "\n" ++
                   line ++ addTypesCode remainder newFts fts
              else line ++ addTypesCode remainder newFts ((f,t):fts)
 

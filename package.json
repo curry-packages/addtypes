@@ -6,7 +6,8 @@
     "synopsis": "A tool to add missing type signatures in a Curry program",
     "category": [ "Programming" ],
     "dependencies": {
-        "abstract-curry": ">= 2.0.0"
+        "abstract-curry": ">= 2.0.0",
+        "wl-pprint"     : ">= 0.0.1"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",

@@ -1,13 +1,13 @@
 {
     "name": "addtypes",
-    "version": "2.0.0",
+    "version": "3.0.0",
     "author": "Bernd Brassel <bbr@informatik.uni-kiel.de>",
     "maintainer": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "A tool to add missing type signatures in a Curry program",
     "category": [ "Programming" ],
     "dependencies": {
-        "abstract-curry": ">= 2.0.0",
-        "wl-pprint"     : ">= 0.0.1"
+        "abstract-curry": ">= 3.0.0",
+        "wl-pprint"     : ">= 2.0.0"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",

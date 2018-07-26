@@ -1,10 +1,10 @@
 ------------------------------------------------------------------
--- A tool to add all those type signatures, you didn't bother to 
--- write while developing the program. 
+-- A tool to add all those type signatures, you didn't bother to
+-- write while developing the program.
 --
 -- @author Bernd Brassel, with changes by Michael Hanus
 -- @version November 2017
--- 
+--
 -- Possible extensions: Use type synonyms to reduce annotations
 ------------------------------------------------------------------
 
@@ -15,28 +15,28 @@ module AddTypes(main,addTypeSignatures) where
 import AllSolutions
 import CurryStringClassifier
 import Distribution (stripCurrySuffix)
-import FileGoodies
-import List
-import System (exitWith, system, getArgs)
+import Data.List
+import System.Process (exitWith, system)
+import System.Environment (getArgs)
 
 import AbstractCurry.Types
 import AbstractCurry.Files
 import AbstractCurry.Pretty
 import Text.Pretty
 
--- The tool is rather simple, it uses Curry's facilities for 
--- meta-programming to read the program in the form defined 
--- in the AbstractCurry module. 
+-- The tool is rather simple, it uses Curry's facilities for
+-- meta-programming to read the program in the form defined
+-- in the AbstractCurry module.
 -- The libraries for meta-programming provides commands to read
 -- AbstractCurry programs typed and untyped.
 -- By comparing the results of these two operations, we are able to
 -- distinguish the inferred types from those given by the programmer.
--- 
+--
 -- addtypes makes use of the CurryStringClassifier, cf. function addTypes.
 
 
 --- addtypes is supposed to get its argument, the file to add type signatures
---- to from the shell. 
+--- to from the shell.
 main :: IO ()
 main = do
   args <- getArgs
@@ -60,8 +60,8 @@ printUsage = putStrLn $ unlines
   , "    curry addtypes <Curry program>"
   ]
 
---- the given file is read three times: a) typed, to get all the necessary 
---- type information b) untyped to find out, which of the types were 
+--- the given file is read three times: a) typed, to get all the necessary
+--- type information b) untyped to find out, which of the types were
 --- specified by the user and c) as a simple string to which the signatures
 --- are added. Before adding anything, addtypes will write a backup
 --- to <given filename>.ORG.curry
@@ -78,7 +78,7 @@ addTypeSignatures progname = do
    untypedProg <- readUntypedCurry progname
    progLines <- readFile (progname++".curry")
    mbprog <- getOneSolution -- enforce reading of all files before returning
-               (\p -> p =:= unscan (addTypes (scan progLines) 
+               (\p -> p =:= unscan (addTypes (scan progLines)
                                              (getTypes typedProg untypedProg)))
    system $ "rm -f "++progname++".acy "++progname++".uacy"
    maybe (error "AddTypes: can't add type signatures") return mbprog
@@ -88,20 +88,20 @@ addTypeSignatures progname = do
 
 getTypes :: CurryProg -> CurryProg -> [(String,CQualTypeExpr)]
 getTypes (CurryProg _ _ _ _ _ _ funcDecls1 _)
-         (CurryProg _ _ _ _ _ _ funcDecls2 _) 
+         (CurryProg _ _ _ _ _ _ funcDecls2 _)
          = getTypesFuncDecls funcDecls1 funcDecls2
   where
     getTypesFuncDecls [] [] = []
-    getTypesFuncDecls (CFunc name _ _ t1 _:fs1) (CFunc _ _ _ t2 _:fs2) 
+    getTypesFuncDecls (CFunc name _ _ t1 _:fs1) (CFunc _ _ _ t2 _:fs2)
       | isUntyped t2 = (snd name,t1) : getTypesFuncDecls fs1 fs2
       | otherwise = getTypesFuncDecls fs1 fs2
 
---- addtypes implements a simple algorithm to decide where to add type 
---- information. Find the first line wich contains the function name 
+--- addtypes implements a simple algorithm to decide where to add type
+--- information. Find the first line wich contains the function name
 --- on the left hand side and insert the type annotation before that line.
---- The problem with this algorithm is that it might get confused by 
+--- The problem with this algorithm is that it might get confused by
 --- comments. This is where the Curry string classifier comes in.
---- After using CurryStringClassifier.scan the function addTypes only 
+--- After using CurryStringClassifier.scan the function addTypes only
 --- has to process "Code" tokens and can be sure that there will be no
 --- confusion with Comments, Strings or Chars within the program.
 
@@ -119,7 +119,7 @@ addTypes (Code s:ts)         fts = Code newS : newTs
     newFts = unknown
 
 --- Within a given  code segment insert all annotations for the contained
---- function and return the new code + the list of functions not yet 
+--- function and return the new code + the list of functions not yet
 --- inserted (via the logical variable newFts).
 
 addTypesCode :: String -> [(String,CQualTypeExpr)] -> [(String,CQualTypeExpr)]
@@ -127,9 +127,9 @@ addTypesCode :: String -> [(String,CQualTypeExpr)] -> [(String,CQualTypeExpr)]
 addTypesCode code [] [] = code
 addTypesCode code newFts ((f,t):fts)
   | null code = (newFts=:=((f,t):fts)) &> []
-  | otherwise 
-  = case lhs of 
-      [] -> head remainder 
+  | otherwise
+  = case lhs of
+      [] -> head remainder
           : addTypesCode (tail remainder) newFts ((f,t):fts)
       ' ':_ -> line ++ addTypesCode remainder newFts ((f,t):fts)
       _ -> if defines f lhs
@@ -185,7 +185,7 @@ tvarsInQualType (CQualType (CContext cons) t) (CQualType (CContext cons') t') =
 
 tvars :: CTypeExpr -> CTypeExpr -> [(Int,CTypeExpr)]
 tvars (CTVar (i,_)) m = [(i,m)]
-tvars (CTCons n) (CTCons n') 
+tvars (CTCons n) (CTCons n')
   | n=:=n' = []
 tvars (CFuncType t1 t2) (CFuncType t1' t2')
   = tvars t1 t1' ++ tvars t2 t2'
@@ -197,7 +197,7 @@ tvars (CTApply t1 t2) (CTApply t1' t2')
 
 varNames :: Eq a => Int -> [(a,CTypeExpr)] -> Bool
 varNames _ [] = True
-varNames n ((i,v):ivs) 
+varNames n ((i,v):ivs)
   | null is =   (v =:= CTVar (0,"_")) &> (varNames n others)
   | otherwise = (giveName (toTVar n) (v:map snd is)) &> (varNames (n+1) others)
   where
@@ -213,12 +213,12 @@ dualMap _ [] [] = []
 dualMap f (x:xs) (y:ys) = f x y:dualMap f xs ys
 
 --- a left hand side defines a function named f, if it starts leftmost,
---- and contains f 
+--- and contains f
 defines :: String -> String -> Bool
-defines f lhs 
+defines f lhs
   | null ts = False
   | head lhs == ' ' = False
-  | otherwise = elem f ts 
+  | otherwise = elem f ts
   where
     ts = symbols lhs
 
@@ -237,10 +237,8 @@ symbols lhs = syms [] lhs
   where
     maybeSym t = if null t then [] else [t]
     syms s [] = maybeSym s
-    syms s (x:xs) 
-      | elem x delimiters 
+    syms s (x:xs)
+      | elem x delimiters
       = maybeSym s ++ syms [] (dropWhile (flip elem delimiters) xs)
-      | otherwise 
+      | otherwise
       = syms (s++[x]) xs
-
-

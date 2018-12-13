@@ -3,25 +3,26 @@
 -- write while developing the program. 
 --
 -- @author Bernd Brassel, with changes by Michael Hanus
--- @version November 2017
+-- @version December 2018
 -- 
 -- Possible extensions: Use type synonyms to reduce annotations
 ------------------------------------------------------------------
 
 {-# OPTIONS_CYMAKE -Wno-incomplete-patterns #-}
 
-module AddTypes(main,addTypeSignatures) where
+module AddTypes ( main, addTypeSignatures )
+ where
 
 import AllSolutions
 import CurryStringClassifier
-import Distribution (stripCurrySuffix)
 import FileGoodies
 import List
-import System (exitWith, system, getArgs)
+import System ( exitWith, system, getArgs )
 
 import AbstractCurry.Types
 import AbstractCurry.Files
 import AbstractCurry.Pretty
+import System.CurryPath     ( stripCurrySuffix )
 import Text.Pretty
 
 -- The tool is rather simple, it uses Curry's facilities for 

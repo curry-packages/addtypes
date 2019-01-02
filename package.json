@@ -9,6 +9,7 @@
         "abstract-curry": ">= 2.0.0",
         "base"          : ">= 1.0.0, < 2.0.0",
         "currypath"     : ">= 0.0.1",
+        "searchtree"    : ">= 0.0.1",
         "wl-pprint"     : ">= 0.0.1"
     },
     "compilerCompatibility": {

@@ -13,8 +13,6 @@
 module AddTypes ( main, addTypeSignatures )
  where
 
-import AllSolutions
-import CurryStringClassifier
 import FileGoodies
 import List
 import System ( exitWith, system, getArgs )
@@ -22,8 +20,11 @@ import System ( exitWith, system, getArgs )
 import AbstractCurry.Types
 import AbstractCurry.Files
 import AbstractCurry.Pretty
+import Control.AllSolutions ( getOneValue )
 import System.CurryPath     ( stripCurrySuffix )
 import Text.Pretty
+
+import CurryStringClassifier
 
 -- The tool is rather simple, it uses Curry's facilities for 
 -- meta-programming to read the program in the form defined 
@@ -78,9 +79,9 @@ addTypeSignatures progname = do
    typedProg <- readCurry progname
    untypedProg <- readUntypedCurry progname
    progLines <- readFile (progname++".curry")
-   mbprog <- getOneSolution -- enforce reading of all files before returning
-               (\p -> p =:= unscan (addTypes (scan progLines) 
-                                             (getTypes typedProg untypedProg)))
+   mbprog <- getOneValue -- enforce reading of all files before returning
+               (unscan (addTypes (scan progLines) 
+                                 (getTypes typedProg untypedProg)))
    system $ "rm -f "++progname++".acy "++progname++".uacy"
    maybe (error "AddTypes: can't add type signatures") return mbprog
 

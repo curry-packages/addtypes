@@ -22,17 +22,17 @@
 ---
 --- @author Bernd Brassel
 --- @version April 2005
---- @category meta
 ----------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -Wno-incomplete-patterns #-}
 
 module CurryStringClassifier
-         (Tokens,Token(..), scan, plainCode, unscan,
-          isSmallComment, isBigComment, isComment, isText, isLetter,
-          isCode, isModuleHead, isMeta,  readScan,testScan) 
-      where
+  ( Tokens, Token(..), scan, plainCode, unscan
+  , isSmallComment, isBigComment, isComment, isText, isLetter
+  , isCode, isModuleHead, isMeta, readScan, testScan
+  ) where
 
-import Char(isDigit,isSpace)
+import Char ( isDigit, isSpace )
 
 --- The different categories to classify the source code.
 data Token  = SmallComment String 
@@ -47,39 +47,47 @@ type Tokens = [Token]
 
 
 --- test for category "SmallComment"
+isSmallComment :: Token -> Bool
 isSmallComment x = case x of 
                     SmallComment _ -> True
                     _ -> False
 
 --- test for category "BigComment"
+isBigComment :: Token -> Bool
 isBigComment x = case x of 
                     BigComment _ -> True
                     _ -> False
 
 --- test if given token is a comment (big or small)
+isComment :: Token -> Bool
 isComment x = isSmallComment x || isBigComment x
 
 --- test for category "Text" (String)
+isText :: Token -> Bool
 isText x = case x of 
                     Text _ -> True
                     _ -> False
 
 --- test for category "Letter" (Char)
+isLetter :: Token -> Bool
 isLetter x = case x of 
                     Letter _ -> True
                     _ -> False
 
 --- test for category "Code"
+isCode :: Token -> Bool
 isCode x = case x of 
                     Code _ -> True
                     _ -> False
 
 --- test for category "ModuleHead", ie imports and operator declarations
+isModuleHead :: Token -> Bool
 isModuleHead x = case x of 
                     ModuleHead _ -> True
                     _ -> False
 
 --- test for category "Meta", ie between {+ and +}
+isMeta :: Token -> Bool
 isMeta x = case x of 
                     Meta _ -> True
                     _ -> False
@@ -93,6 +101,7 @@ unweaveCode [] = ([],[])
 unweaveCode (t:ts) = let (cs,ncs) = unweaveCode ts in 
   if isCode t then (t:cs,ncs) else (cs,t:ncs)
  
+weave :: ([a],[a]) -> [a]
 weave xys = case xys of
        ([],[]) -> []
        ([],[y]) -> [y]
@@ -231,6 +240,7 @@ toBeEscaped = "\\\n\r\t\""
 maybeCode :: [Char] -> Tokens -> Tokens
 maybeCode s ts = {-if s=="" then ts else-} Code s:ts
 
+maybeMo :: String -> [Token] -> [Token]
 maybeMo s ts = if s=="" then ts else ModuleHead s:case ts of
   Code c:ts' -> Code ('\n':c):ts'
   _ -> ts

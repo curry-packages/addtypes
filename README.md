@@ -9,7 +9,7 @@ Curry source code and classifies it into a few standard categories
 
 The tool can be directly installed by the command
 
-    > cpm installbin addtypes
+    > cypm install addtypes
 
 This installs the executable `curry-addtypes` in the bin directory of CPM.
 
@@ -22,3 +22,7 @@ be added, e.g.,
 
     > curry-addtypes LazyProgram
 
+This command replaces the program `LazyProgram.curry` by a new
+program text where type signatures to top-level operations
+have been added. The old version of the program is saved
+to `LazyProgram.ORG.curry`.

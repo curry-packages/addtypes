@@ -3,7 +3,7 @@
 -- write while developing the program. 
 --
 -- @author Bernd Brassel, with changes by Michael Hanus
--- @version December 2018
+-- @version November 2020
 -- 
 -- Possible extensions: Use type synonyms to reduce annotations
 ------------------------------------------------------------------
@@ -13,15 +13,15 @@
 module AddTypes ( main, addTypeSignatures )
  where
 
-import FileGoodies
-import List
-import System ( exitWith, system, getArgs )
+import Data.List
+import System.Environment ( getArgs )
 
 import AbstractCurry.Types
 import AbstractCurry.Files
 import AbstractCurry.Pretty
 import Control.AllSolutions ( getOneValue )
 import System.CurryPath     ( stripCurrySuffix )
+import System.Process       ( exitWith, system )
 import Text.Pretty
 
 import CurryStringClassifier
@@ -50,16 +50,14 @@ main = do
             let progname = stripCurrySuffix fname
             writeWithTypeSignatures progname
             putStrLn $ "Signatures added.\nA backup of the original " ++
-                       "file has been written to "++progname++".ORG.curry"
+                       "file has been written to " ++ progname ++ ".ORG.curry"
     _          -> printUsage >> exitWith 1
 
 printUsage :: IO ()
 printUsage = putStrLn $ unlines
   [ "A tool to add missing type signatures to top-level operations"
   , ""
-  , "Usage:"
-  , ""
-  , "    curry addtypes <Curry program>"
+  , "Usage: curry-addtypes <Curry program>"
   ]
 
 --- the given file is read three times: a) typed, to get all the necessary 

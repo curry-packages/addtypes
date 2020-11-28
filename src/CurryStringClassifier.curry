@@ -21,7 +21,7 @@
 --- to add function types to a given program.
 ---
 --- @author Bernd Brassel
---- @version April 2005
+--- @version November 2020
 ----------------------------------------------------------------------
 
 {-# OPTIONS_CYMAKE -Wno-incomplete-patterns #-}
@@ -32,7 +32,7 @@ module CurryStringClassifier
   , isCode, isModuleHead, isMeta, readScan, testScan
   ) where
 
-import Char ( isDigit, isSpace )
+import Data.Char ( isDigit, isSpace )
 
 --- The different categories to classify the source code.
 data Token  = SmallComment String 

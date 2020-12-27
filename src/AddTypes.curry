@@ -3,7 +3,7 @@
 -- write while developing the program. 
 --
 -- @author Bernd Brassel, with changes by Michael Hanus
--- @version November 2020
+-- @version December 2020
 -- 
 -- Possible extensions: Use type synonyms to reduce annotations
 ------------------------------------------------------------------
@@ -20,7 +20,7 @@ import AbstractCurry.Types
 import AbstractCurry.Files
 import AbstractCurry.Pretty
 import Control.AllSolutions ( getOneValue )
-import System.CurryPath     ( stripCurrySuffix )
+import System.CurryPath     ( runModuleAction )
 import System.Process       ( exitWith, system )
 import Text.Pretty
 
@@ -46,42 +46,39 @@ main = do
     ["-h"]     -> printUsage
     ["--help"] -> printUsage
     ["-?"]     -> printUsage
-    [fname]    -> do
-            let progname = stripCurrySuffix fname
-            writeWithTypeSignatures progname
-            putStrLn $ "Signatures added.\nA backup of the original " ++
-                       "file has been written to " ++ progname ++ ".ORG.curry"
+    [fname]    -> runModuleAction writeWithTypeSignatures fname
     _          -> printUsage >> exitWith 1
 
 printUsage :: IO ()
 printUsage = putStrLn $ unlines
   [ "A tool to add missing type signatures to top-level operations"
   , ""
-  , "Usage: curry-addtypes <Curry program>"
+  , "Usage: curry-addtypes <Curry module>"
   ]
 
 --- the given file is read three times: a) typed, to get all the necessary 
 --- type information b) untyped to find out, which of the types were 
 --- specified by the user and c) as a simple string to which the signatures
 --- are added. Before adding anything, addtypes will write a backup
---- to <given filename>.ORG.curry
+--- to <given filename>_ORG.curry
 
 writeWithTypeSignatures :: String -> IO ()
-writeWithTypeSignatures progname = do
-   system $ "cp -p "++progname++".curry "++progname++".ORG.curry"
-   newprog <- addTypeSignatures progname
-   writeFile (progname++".curry") newprog
+writeWithTypeSignatures modname = do
+   system $ "cp -p " ++ modname ++ ".curry " ++ modname ++ "_ORG.curry"
+   newprog <- addTypeSignatures modname
+   writeFile (modname ++ ".curry") newprog
+   putStrLn $ "Signatures added.\nA backup of the original " ++
+              "file has been written to " ++ modname ++ "_ORG.curry"
 
 addTypeSignatures :: String -> IO String
-addTypeSignatures progname = do
-   typedProg <- readCurry progname
-   untypedProg <- readUntypedCurry progname
-   progLines <- readFile (progname++".curry")
+addTypeSignatures modname = do
+   typedProg   <- readCurry modname
+   untypedProg <- readUntypedCurry modname
+   progLines   <- readFile (modname ++ ".curry")
    mbprog <- getOneValue -- enforce reading of all files before returning
                (unscan (addTypes (scan progLines) 
                                  (getTypes typedProg untypedProg)))
-   system $ "rm -f "++progname++".acy "++progname++".uacy"
-   maybe (error "AddTypes: can't add type signatures") return mbprog
+   maybe (error "AddTypes: cannott add type signatures") return mbprog
 
 
 --- retrieve the functions without type signature and their type
@@ -152,7 +149,7 @@ addTypesCode code newFts ((f,t):fts)
 
 toTVar :: Int -> CTypeExpr
 toTVar n | n<26      = CTVar (n,[chr (97+n)])
-         | otherwise = CTVar (n,"t"++show (n-26))
+         | otherwise = CTVar (n,"t" ++ show (n-26))
 
 --- test for functions not typed by the programmer
 
@@ -241,6 +238,6 @@ symbols lhs = syms [] lhs
       | elem x delimiters 
       = maybeSym s ++ syms [] (dropWhile (flip elem delimiters) xs)
       | otherwise 
-      = syms (s++[x]) xs
+      = syms (s ++ [x]) xs
 
 

@@ -25,4 +25,4 @@ be added, e.g.,
 This command replaces the program `LazyProgram.curry` by a new
 program text where type signatures to top-level operations
 have been added. The old version of the program is saved
-to `LazyProgram.ORG.curry`.
+to `LazyProgram_ORG.curry`.

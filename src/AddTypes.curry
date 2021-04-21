@@ -3,7 +3,7 @@
 -- write while developing the program. 
 --
 -- @author Bernd Brassel, with changes by Michael Hanus
--- @version December 2020
+-- @version April 2021
 -- 
 -- Possible extensions: Use type synonyms to reduce annotations
 ------------------------------------------------------------------
@@ -13,15 +13,17 @@
 module AddTypes ( main, addTypeSignatures )
  where
 
+import Control.Monad      ( when )
 import Data.List
 import System.Environment ( getArgs )
 
 import AbstractCurry.Types
 import AbstractCurry.Files
 import AbstractCurry.Pretty
-import Control.AllSolutions ( getOneValue )
-import System.CurryPath     ( runModuleAction )
-import System.Process       ( exitWith, system )
+import Control.AllSolutions      ( getOneValue )
+import Control.Monad.Trans.State
+import System.CurryPath          ( runModuleAction )
+import System.Process            ( exitWith, system )
 import Text.Pretty
 
 import CurryStringClassifier
@@ -43,55 +45,67 @@ main :: IO ()
 main = do
   args <- getArgs
   case args of
-    ["-h"]     -> printUsage
-    ["--help"] -> printUsage
-    ["-?"]     -> printUsage
-    [fname]    -> runModuleAction writeWithTypeSignatures fname
-    _          -> printUsage >> exitWith 1
+    ["-h"]       -> printUsage
+    ["--help"]   -> printUsage
+    ["-?"]       -> printUsage
+    ["-p",fname] -> runModuleAction (writeWithTypeSignatures False) fname
+    [fname]      -> runModuleAction (writeWithTypeSignatures True)  fname
+    _            -> printUsage >> exitWith 1
 
 printUsage :: IO ()
 printUsage = putStrLn $ unlines
   [ "A tool to add missing type signatures to top-level operations"
   , ""
-  , "Usage: curry-addtypes <Curry module>"
+  , "Usage: curry-addtypes [-p] <Curry module>"
+  , ""
+  , "-p : print new program source but do not replace source file"
   ]
 
---- the given file is read three times: a) typed, to get all the necessary 
+--- The given file is read three times: a) typed, to get all the necessary 
 --- type information b) untyped to find out, which of the types were 
 --- specified by the user and c) as a simple string to which the signatures
---- are added. Before adding anything, addtypes will write a backup
---- to <given filename>_ORG.curry
+--- are added.
+--- If the first argument is `True`, addtypes will write a backup of the
+--- source program to `<given filename>_ORG.curry` before replacing
+--- the source program with the version with signatures,
+--- otherwise the version with signatures is only printed.
 
-writeWithTypeSignatures :: String -> IO ()
-writeWithTypeSignatures modname = do
-   system $ "cp -p " ++ modname ++ ".curry " ++ modname ++ "_ORG.curry"
+writeWithTypeSignatures :: Bool -> String -> IO ()
+writeWithTypeSignatures replace modname = do
+   when replace $ do
+     system $ "cp -p " ++ modname ++ ".curry " ++ modname ++ "_ORG.curry"
+     return ()
    newprog <- addTypeSignatures modname
-   writeFile (modname ++ ".curry") newprog
-   putStrLn $ "Signatures added.\nA backup of the original " ++
-              "file has been written to " ++ modname ++ "_ORG.curry"
+   if replace
+     then do
+       writeFile (modname ++ ".curry") newprog
+       putStrLn $ "Signatures added.\nA backup of the original " ++
+                  "file has been written to " ++ modname ++ "_ORG.curry"
+     else putStrLn newprog
 
 addTypeSignatures :: String -> IO String
 addTypeSignatures modname = do
    typedProg   <- readCurry modname
    untypedProg <- readUntypedCurry modname
    progLines   <- readFile (modname ++ ".curry")
-   mbprog <- getOneValue -- enforce reading of all files before returning
+   -- enforce reading of complete source program before returning:
+   mbprog <- getOneValue
                (unscan (addTypes (scan progLines) 
                                  (getTypes typedProg untypedProg)))
-   maybe (error "AddTypes: cannott add type signatures") return mbprog
+   maybe (error "AddTypes: cannot add type signatures") return mbprog
 
 
 --- retrieve the functions without type signature and their type
 
 getTypes :: CurryProg -> CurryProg -> [(String,CQualTypeExpr)]
 getTypes (CurryProg _ _ _ _ _ _ funcDecls1 _)
-         (CurryProg _ _ _ _ _ _ funcDecls2 _) 
-         = getTypesFuncDecls funcDecls1 funcDecls2
-  where
-    getTypesFuncDecls [] [] = []
-    getTypesFuncDecls (CFunc name _ _ t1 _:fs1) (CFunc _ _ _ t2 _:fs2) 
-      | isUntyped t2 = (snd name,t1) : getTypesFuncDecls fs1 fs2
-      | otherwise = getTypesFuncDecls fs1 fs2
+         (CurryProg _ _ _ _ _ _ funcDecls2 _) =
+  getTypesFuncDecls funcDecls1 funcDecls2
+ where
+  getTypesFuncDecls [] [] = []
+  getTypesFuncDecls (CFunc name _ _ t1 _:fs1) (CFunc _ _ _ t2 _:fs2) 
+    | isUntyped t2 = (snd name,t1) : getTypesFuncDecls fs1 fs2
+    | otherwise    = getTypesFuncDecls fs1 fs2
 
 --- addtypes implements a simple algorithm to decide where to add type 
 --- information. Find the first line wich contains the function name 
@@ -145,69 +159,100 @@ addTypesCode code newFts ((f,t):fts)
                          ppCQualTypeExpr defaultOptions texp]
 
 
---- name type variables with a,b,c ... z, t0, t1, ...
-
-toTVar :: Int -> CTypeExpr
-toTVar n | n<26      = CTVar (n,[chr (97+n)])
-         | otherwise = CTVar (n,"t" ++ show (n-26))
-
 --- test for functions not typed by the programmer
 
 isUntyped :: CQualTypeExpr -> Bool
-isUntyped typeexpr
-   = case typeexpr of
-       CQualType (CContext []) (CTCons (mod,name)) ->
-                                   name == "untyped" && mod == "Prelude"
-       _ -> False
+isUntyped typeexpr =
+  case typeexpr of
+    CQualType (CContext []) (CTCons (mod,name))
+      -> name == "untyped" && mod == "Prelude"
+    _ -> False
 
---- normalizing is to rename variables left-right beginning with 0
---- and replace singletons with an "_"
-normalize :: CQualTypeExpr -> CQualTypeExpr
-normalize t | varNames 0 (tvarsInQualType t newT) = newT  where newT free
+------------------------------------------------------------------------------
+-- Normalization of type variables in type expressions by enumerating
+-- them starting from `(1,"a")` and type variables with singleton
+-- occurrences are replaced by `(0,"_")`.
 
---- retrieve all vars contained in a qualified type expression and
---- simultaneously build a new qualified type expression
---- with logical variables for type vars
+-- The state used during normalization consists of a current number
+-- for enumerating type variables, a mapping from old variables
+-- to new numbers (which will be expanded during the transformation),
+-- and the list of all occurrences of type varables (which will be
+-- used to check for single occurrences).
+data NormInfo = NormInfo { currNr   :: Int
+                         , varMap   :: [(Int,Int)]
+                         , allTVars :: [CTVarIName]
+                         }
 
-tvarsInQualType :: CQualTypeExpr -> CQualTypeExpr -> [(Int,CTypeExpr)]
-tvarsInQualType (CQualType (CContext cons) t) (CQualType (CContext cons') t') =
-  tvarsInContext cons cons' ++ tvars t t'
+-- The initial normalization state.
+initNormInfo :: CQualTypeExpr -> NormInfo
+initNormInfo qt = NormInfo 0 [] (allTVarsOfQualType qt)
  where
-  tvarsInContext [] [] = []
-  tvarsInContext ((qf,te):ctxt) ((qf',te'):ctxt')
-    | qf=:=qf' = tvars te te' ++ tvarsInContext ctxt ctxt'
+  allTVarsOfQualType (CQualType (CContext ctxt) t) =
+    concatMap (allTVarsTExp . snd) ctxt ++ allTVarsTExp t
 
---- retrieve all vars contained in a type expression and simultaneously
---- build a new type expression with logical variables for type vars
+  allTVarsTExp (CTVar tv)        = [tv]
+  allTVarsTExp (CTCons _)        = []
+  allTVarsTExp (CFuncType t1 t2) = allTVarsTExp t1 ++ allTVarsTExp t2
+  allTVarsTExp (CTApply t1 t2)   = allTVarsTExp t1 ++ allTVarsTExp t2
 
-tvars :: CTypeExpr -> CTypeExpr -> [(Int,CTypeExpr)]
-tvars (CTVar (i,_)) m = [(i,m)]
-tvars (CTCons n) (CTCons n') 
-  | n=:=n' = []
-tvars (CFuncType t1 t2) (CFuncType t1' t2')
-  = tvars t1 t1' ++ tvars t2 t2'
-tvars (CTApply t1 t2) (CTApply t1' t2')
-  = tvars t1 t1' ++ tvars t2 t2'
 
---- give a list of variables names depending on whether they are singletons
---- or not
+-- The type of our actual state monad contains the normalization state.
+type TransNorm a = State NormInfo a
 
-varNames :: Eq a => Int -> [(a,CTypeExpr)] -> Bool
-varNames _ [] = True
-varNames n ((i,v):ivs) 
-  | null is =   (v =:= CTVar (0,"_")) &> (varNames n others)
-  | otherwise = (giveName (toTVar n) (v:map snd is)) &> (varNames (n+1) others)
-  where
-    (is,others) = partition (\ (i',_) -> i==i') ivs
-    giveName _ [] = True
-    giveName name (x:xs) = name=:=x & giveName name xs
+-- Auxiliary operation: get a new variable index for a given variable index.
+-- Either return the existing index or create a fresh one and update
+-- the state.
+getVarIndex :: Int -> TransNorm Int
+getVarIndex v = do
+  ti <- get
+  maybe (do let freshnr = currNr ti + 1
+            put ti { currNr = freshnr, varMap = (v,freshnr) : varMap ti }
+            return freshnr )
+        return
+        (lookup v (varMap ti))
 
---- map on two lists simultaniously. Can't use zip, because the second
---- argument here is a logical variable.
+--- Normalize type expression by rename type variables left-to-right
+--- beginning with 0.
+normalize :: CQualTypeExpr ->  CQualTypeExpr
+normalize qte = evalState (normalizeT qte) (initNormInfo qte)
 
-dualMap :: (a -> b -> c) -> [a] -> [b] -> [c]
-dualMap _ [] [] = []
-dualMap f (x:xs) (y:ys) = f x y:dualMap f xs ys
+normalizeT :: CQualTypeExpr -> TransNorm CQualTypeExpr
+normalizeT (CQualType (CContext ctxt) t) = do
+  ctxt' <- normCtxt ctxt
+  t'    <- normTExp t
+  return (CQualType (CContext ctxt') t')
+
+normCtxt :: [CConstraint] -> TransNorm [CConstraint]
+normCtxt [] = return []
+normCtxt ((qf,te) : ctxt) = do
+  te'   <- normTExp te
+  ctxt' <- normCtxt ctxt
+  return ((qf,te') : ctxt')
+
+normTExp :: CTypeExpr -> TransNorm CTypeExpr
+normTExp (CTVar tv@(i,_)) = do
+  ti <- get
+  if length (filter (==tv) (allTVars ti)) <= 1
+    then return (CTVar (0,"_"))
+    else do ni <- getVarIndex i
+            return (toTVar ni)
+normTExp (CTCons n) = return (CTCons n) 
+normTExp (CFuncType t1 t2) = do
+  t1' <- normTExp t1
+  t2' <- normTExp t2
+  return (CFuncType t1' t2')
+normTExp (CTApply t1 t2) = do
+  t1' <- normTExp t1
+  t2' <- normTExp t2
+  return (CTApply t1' t2')
+
+--- Name type variables with a,b,c ... z, t0, t1, ...:
+toTVar :: Int -> CTypeExpr
+toTVar n | n < 27    = CTVar (n, [chr (96+n)])
+         | otherwise = CTVar (n, "t" ++ show (n-27))
+
+------------------------------------------------------------------------------
+-- Auxiliaries:
 
 --- a left hand side defines a function named f, if it starts leftmost,
 --- and contains f 
@@ -240,4 +285,4 @@ symbols lhs = syms [] lhs
       | otherwise 
       = syms (s ++ [x]) xs
 
-
+------------------------------------------------------------------------------

@@ -20,7 +20,7 @@ import System.Environment ( getArgs )
 import AbstractCurry.Types
 import AbstractCurry.Files
 import AbstractCurry.Pretty
-import Control.AllSolutions      ( getOneValue )
+import Control.AllValues         ( getOneValue )
 import Control.Monad.Trans.State
 import System.CurryPath          ( runModuleAction )
 import System.Process            ( exitWith, system )

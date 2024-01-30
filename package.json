@@ -26,7 +26,7 @@
                     "main": "AddTypes"
                   },
     "source": {
-      "git": "https://github.com/curry-packages/addtypes.gitt",
+      "git": "https://github.com/curry-packages/addtypes.git",
       "tag": "$version"
     }
 }

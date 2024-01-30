@@ -1,6 +1,6 @@
 {
     "name": "addtypes",
-    "version": "3.0.0",
+    "version": "3.2.0",
     "author": "Bernd Brassel <bbr@informatik.uni-kiel.de>",
     "maintainer": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "A tool to add missing type signatures in a Curry program",
@@ -8,9 +8,9 @@
     "license": "BSD-3-Clause",
     "licenseFile": "LICENSE",
     "dependencies": {
-        "base"          : ">= 3.0.0, < 4.0.0",
+        "base"          : ">= 3.2.0, < 4.0.0",
         "abstract-curry": ">= 3.0.0, < 4.0.0",
-        "allvalues"     : ">= 3.0.0, < 4.0.0",
+        "curry-source"  : "^ 1.1.0",
         "currypath"     : ">= 3.0.0, < 4.0.0",
         "process"       : ">= 3.0.0, < 4.0.0",
         "transformers"  : ">= 3.0.0, < 4.0.0",
@@ -26,7 +26,7 @@
                     "main": "AddTypes"
                   },
     "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/addtypes.git",
+      "git": "https://github.com/curry-packages/addtypes.gitt",
       "tag": "$version"
     }
 }

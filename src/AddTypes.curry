@@ -20,13 +20,13 @@ import System.Environment ( getArgs )
 import AbstractCurry.Types
 import AbstractCurry.Files
 import AbstractCurry.Pretty
-import Control.AllValues         ( getOneValue )
+import Control.Search.AllValues  ( getOneValue )
 import Control.Monad.Trans.State
+import Language.Curry.StringClassifier
 import System.CurryPath          ( runModuleAction )
 import System.Process            ( exitWith, system )
 import Text.Pretty
 
-import CurryStringClassifier
 
 -- The tool is rather simple, it uses Curry's facilities for 
 -- meta-programming to read the program in the form defined 

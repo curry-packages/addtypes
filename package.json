@@ -21,7 +21,6 @@
        to top-level operations in a Curry module.
        Moreover, it contains a library to process strings containing
        Curry source code and classifies it into a few standard categories",
-    "exportedModules": [ "AddTypes", "CurryStringClassifier" ],
     "executable": { "name": "curry-addtypes",
                     "main": "AddTypes"
                   },

@@ -188,7 +188,7 @@ initNormInfo :: CQualTypeExpr -> NormInfo
 initNormInfo qt = NormInfo 0 [] (allTVarsOfQualType qt)
  where
   allTVarsOfQualType (CQualType (CContext ctxt) t) =
-    concatMap (allTVarsTExp . snd) ctxt ++ allTVarsTExp t
+    concatMap (concatMap allTVarsTExp . snd) ctxt ++ allTVarsTExp t
 
   allTVarsTExp (CTVar tv)        = [tv]
   allTVarsTExp (CTCons _)        = []
@@ -224,10 +224,10 @@ normalizeT (CQualType (CContext ctxt) t) = do
 
 normCtxt :: [CConstraint] -> TransNorm [CConstraint]
 normCtxt [] = return []
-normCtxt ((qf,te) : ctxt) = do
-  te'   <- normTExp te
+normCtxt ((qf,ts) : ctxt) = do
+  ts'   <- mapM normTExp ts
   ctxt' <- normCtxt ctxt
-  return ((qf,te') : ctxt')
+  return ((qf,ts') : ctxt')
 
 normTExp :: CTypeExpr -> TransNorm CTypeExpr
 normTExp (CTVar tv@(i,_)) = do
